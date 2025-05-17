@@ -1,12 +1,11 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect} from 'react';
 import axios from 'axios';
 import moment from 'moment-timezone';
-import AuthContext from '../context/AuthContext';
 
 const ChefDashboard = () => {
   const [officeCount, setOfficeCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const { user } = useContext(AuthContext);
+
 
   useEffect(() => {
     const fetchOfficeCount = async () => {

@@ -1,18 +1,18 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import moment from 'moment-timezone';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { toast } from 'react-toastify';
-import AuthContext from '../context/AuthContext';
 
 const AdminDashboard = () => {
   const [startDate, setStartDate] = useState(moment().subtract(7, 'days').toDate());
   const [endDate, setEndDate] = useState(new Date());
   const [analytics, setAnalytics] = useState([]);
   const [loading, setLoading] = useState(false);
-  const { user } = useContext(AuthContext);
+ 
 
+  
   useEffect(() => {
     fetchAnalytics();
   }, [startDate, endDate]);

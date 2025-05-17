@@ -9,54 +9,71 @@ import AuthContext from '../context/AuthContext';
 const EmployeeDashboard = () => {
   const [attendanceStatus, setAttendanceStatus] = useState('');
   const [selectedDate, setSelectedDate] = useState(null);
-  const [message, setMessage] = useState('');
   const [todaysStatus, setTodaysStatus] = useState('');
   const { user } = useContext(AuthContext);
 
   useEffect(() => {
-    const fetchTodaysAttendance = async () => {
-      try {
-        const today = moment.tz('Asia/Kolkata').startOf('day').toISOString();
-        const res = await axios.get(`/api/v1/attendance/analytics?startDate=${today}&endDate=${today}`);
-        
-        if (res.data.data.length > 0) {
-          const userAttendance = res.data.data[0].users.find(u => u.id === user.id);
-          if (userAttendance) {
-            setTodaysStatus(userAttendance.status);
-          }
+  const fetchTodaysAttendance = async () => {
+    try {
+      const today = moment.tz('Asia/Kolkata').startOf('day').toISOString();
+      // Change from analytics endpoint to user-specific endpoint
+      const res = await axios.get(`/api/v1/attendance?date=${today}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
         }
-      } catch (err) {
-        console.error('Error fetching attendance:', err);
+      });
+      
+      if (res.data.data) {
+        setTodaysStatus(res.data.data.status);
       }
-    };
+    } catch (err) {
+      console.error('Error fetching attendance:', err);
+    }
+  };
 
-    fetchTodaysAttendance();
-  }, [user]);
+  fetchTodaysAttendance();
+}, [user]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
     if (!attendanceStatus) {
       toast.error('Please select an attendance status');
+      return;
+    }
+
+    // Parse the selected date or use today's date
+    let date = selectedDate ? new Date(selectedDate) : new Date();
+    date = moment.tz(date, 'Asia/Kolkata').startOf('day').toDate();
+    
+    // Check if it's a weekend
+    const dayOfWeek = moment.tz(date, 'Asia/Kolkata').day();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      toast.warning('Cannot mark attendance for weekends. Please select a weekday.');
       return;
     }
 
     try {
       const res = await axios.post('/api/v1/attendance', {
         status: attendanceStatus,
-        forDate: selectedDate
+        forDate: date
       });
       
-      setMessage(res.data.message);
       toast.success(res.data.message);
       setTodaysStatus(attendanceStatus);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Error marking attendance');
+      if (err.response?.data?.error?.includes('weekend')) {
+        toast.warning('Cannot mark attendance for weekends');
+      } else {
+        toast.error(err.response?.data?.error || 'Error marking attendance');
+      }
     }
   };
 
   const now = moment.tz('Asia/Kolkata');
   const cutoffTime = moment.tz('Asia/Kolkata').set({ hour: 9, minute: 30, second: 0 });
   const isAfterCutoff = now.isAfter(cutoffTime);
+  const isWeekend = [0, 6].includes(moment.tz('Asia/Kolkata').day());
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -69,9 +86,9 @@ const EmployeeDashboard = () => {
           </div>
         )}
         
-        {message && (
-          <div className="mb-4 p-3 bg-green-100 text-green-800 rounded">
-            {message}
+        {isWeekend && !selectedDate && (
+          <div className="mb-4 p-3 bg-blue-100 text-blue-800 rounded">
+            Today is a weekend. You can mark attendance for future weekdays.
           </div>
         )}
         
@@ -82,8 +99,19 @@ const EmployeeDashboard = () => {
             </label>
             <DatePicker
               selected={selectedDate}
-              onChange={(date) => setSelectedDate(date)}
+              onChange={(date) => {
+                const day = moment.tz(date, 'Asia/Kolkata').day();
+                if (day === 0 || day === 6) {
+                  toast.warning('Weekend selection not allowed');
+                  return;
+                }
+                setSelectedDate(date);
+              }}
               minDate={new Date()}
+              filterDate={(date) => {
+                const day = moment.tz(date, 'Asia/Kolkata').day();
+                return day !== 0 && day !== 6; // Disable weekends
+              }}
               className="border border-gray-300 rounded p-2 w-full"
               placeholderText="Today (default)"
             />
@@ -143,6 +171,7 @@ const EmployeeDashboard = () => {
             <button
               type="submit"
               className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              disabled={!attendanceStatus}
             >
               Submit Attendance
             </button>

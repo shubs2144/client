@@ -41,12 +41,18 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Login user
-  const login = async (email, password) => {
-    try {
-      const res = await axios.post('http://localhost:5000/api/v1/auth/login', {
-        email,
-        password
-      });
+ const login = async (email, password) => {
+  try {
+    const res = await axios.post('http://localhost:5000/api/v1/auth/login', 
+      { email, password },
+      {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
+    );
+
 
       console.log('Login response:', res.data);
       localStorage.setItem('token', res.data.token);
